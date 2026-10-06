@@ -130,6 +130,13 @@
       outline-offset: 2px;
     }
 
+    .btn-primary:disabled {
+      background: #a8c4ca;
+      border-color: #a8c4ca;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
     /* ---------- FILTERS ---------- */
     .filters {
       display: flex;
@@ -233,6 +240,7 @@
       font-size: 1rem;
       color: #1a3a46;
       word-break: break-word;
+      overflow-wrap: anywhere;
       padding: 0.2rem 0;
       min-width: 0;
     }
@@ -379,7 +387,7 @@
       <label for="taskInput" class="input-label">New task</label>
       <div class="input-row">
         <input type="text" id="taskInput" placeholder="New task" autocomplete="off" aria-label="New task description">
-        <button id="addTaskBtn" class="btn-primary">
+        <button id="addTaskBtn" class="btn-primary" disabled>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Add
         </button>
@@ -685,7 +693,7 @@
         });
       }
 
-            // Delete task
+      // Delete task
       function deleteTask(taskId) {
         if (!confirm('Delete this task?')) return;
         db.collection('tasks').doc(taskId).delete().catch(err => {
@@ -698,7 +706,12 @@
       addTaskBtn.addEventListener('click', () => {
         addTask(taskInput.value);
         taskInput.value = '';
+        addTaskBtn.disabled = true;
         taskInput.focus();
+      });
+
+      taskInput.addEventListener('input', () => {
+        addTaskBtn.disabled = taskInput.value.trim() === '';
       });
 
       taskInput.addEventListener('keydown', (e) => {
@@ -706,6 +719,7 @@
           e.preventDefault();
           addTask(taskInput.value);
           taskInput.value = '';
+          addTaskBtn.disabled = true;
           taskInput.focus();
         }
       });
