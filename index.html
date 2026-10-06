@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+  <title>TaskFlow · Firestore To‑Do</title>
+  <style>
+    /* ---------- RESET & GLOBAL ---------- */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    }
+
+    body {
+      background: #f5f7fb;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 1.5rem 1rem;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 680px;
+      background: white;
+      border-radius: 2rem;
+      box-shadow: 0 20px 40px -12px rgba(0, 20, 30, 0.2);
+      padding: 2rem 1.5rem;
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 0.75rem 0.5rem; }
+      .app-container { padding: 1.5rem 1rem; border-radius: 1.5rem; }
+    }
+
+    /* ---------- HEADER ---------- */
+    h1 {
+      font-size: 1.9rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #0b2b3d;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ---------- LOADING & ERROR ---------- */
+    .status-banner {
+      padding: 0.75rem 1rem;
+      border-radius: 1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.9rem;
+      background: #eef5f9;
+      color: #145468;
+    }
+
+    .status-banner.error {
+      background: #ffe9e9;
+      color: #b33a3a;
+      border-left: 5px solid #c0392b;
+    }
+
+    .status-banner.hidden { display: none; }
+
+    /* ---------- ADD TASK FORM ---------- */
+    .add-task-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .input-label {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #2b5f6e;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    #taskInput {
+      flex: 1;
+      padding: 0.9rem 1.2rem;
+      border: 1.5px solid #cbd8e2;
+      border-radius: 2rem;
+      font-size: 1rem;
+      background: #f9fcff;
+      transition: 0.2s;
+      min-width: 0;
+    }
+
+    #taskInput:focus {
+      outline: none;
+      border-color: #1e7e8c;
+      box-shadow: 0 0 0 3px rgba(30, 126, 140, 0.15);
+      background: white;
+    }
+
+    .btn-primary {
+      background: #1e7e8c;
+      color: white;
+      border: 1.5px solid #1e7e8c;
+      border-radius: 2rem;
+      padding: 0.9rem 1.6rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: 0.2s;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+    }
+
+    .btn-primary:hover {
+      background: #14616c;
+      border-color: #14616c;
+    }
+
+    .btn-primary:focus-visible {
+      outline: 3px solid #92c9d3;
+      outline-offset: 2px;
+    }
+
+    /* ---------- FILTERS ---------- */
+    .filters {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      background: transparent;
+      border: 1.5px solid #d0dfe8;
+      border-radius: 2rem;
+      padding: 0.5rem 1.2rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #2b5f6e;
+      cursor: pointer;
+      transition: 0.15s;
+      flex: 1 0 auto;
+      min-width: 70px;
+      text-align: center;
+    }
+
+    .filter-btn:hover {
+      background: #e6f0f5;
+      border-color: #aac2d0;
+    }
+
+    .filter-btn.active {
+      background: #1e7e8c;
+      border-color: #1e7e8c;
+      color: white;
+      font-weight: 600;
+    }
+
+    .filter-btn:focus-visible {
+      outline: 3px solid #92c9d3;
+      outline-offset: 2px;
+    }
+
+    /* ---------- TASK LIST ---------- */
+    .task-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      margin-bottom: 1.5rem;
+      min-height: 120px;
+    }
+
+    .task-item {
+      background: #ffffff;
+      border: 1.5px solid #e3ecf2;
+      border-radius: 1.25rem;
+      padding: 0.9rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      transition: 0.15s;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+      flex-wrap: wrap;
+    }
+
+    .task-item:hover {
+      border-color: #b8d0dc;
+      background: #fafdff;
+    }
+
+    /* checkbox */
+    .task-check {
+      width: 1.4rem;
+      height: 1.4rem;
+      border-radius: 50%;
+      border: 2px solid #aac2d0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: 0.15s;
+      background: white;
+      padding: 0;
+      font-size: 0.85rem;
+      color: white;
+      font-weight: bold;
+    }
+
+    .task-check.completed {
+      background: #2b7a8c;
+      border-color: #2b7a8c;
+    }
+
+    .task-check:focus-visible {
+      outline: 3px solid #92c9d3;
+      outline-offset: 2px;
+    }
+
+    /* task text */
+    .task-text {
+      flex: 1;
+      font-size: 1rem;
+      color: #1a3a46;
+      word-break: break-word;
+      padding: 0.2rem 0;
+      min-width: 0;
+    }
+
+    .task-text.completed {
+      text-decoration: line-through;
+      color: #7b939f;
+    }
+
+    /* action buttons – icon style */
+    .task-actions {
+      display: flex;
+      gap: 0.25rem;
+      flex-shrink: 0;
+    }
+
+    .action-btn {
+      background: transparent;
+      border: none;
+      border-radius: 50%;
+      width: 2rem;
+      height: 2rem;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #567d8b;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+
+    .action-btn:hover {
+      background: #e6f0f5;
+      color: #0b2b3d;
+    }
+
+    .action-btn:focus-visible {
+      outline: 3px solid #92c9d3;
+      outline-offset: 2px;
+    }
+
+    .action-btn.delete:hover {
+      background: #ffe9e9;
+      color: #b33a3a;
+    }
+
+    /* responsive tweak for narrow screens */
+    @media (max-width: 400px) {
+      .action-btn {
+        width: 1.8rem;
+        height: 1.8rem;
+      }
+      .task-item {
+        gap: 0.5rem;
+        padding: 0.75rem 0.8rem;
+      }
+    }
+
+    /* edit mode */
+    .edit-input {
+      flex: 1;
+      padding: 0.5rem 0.8rem;
+      border: 1.5px solid #1e7e8c;
+      border-radius: 1.5rem;
+      font-size: 0.95rem;
+      outline: none;
+      background: white;
+      min-width: 0;
+    }
+
+    .edit-actions {
+      display: flex;
+      gap: 0.3rem;
+      flex-shrink: 0;
+    }
+
+    .small-btn {
+      background: #ecf3f7;
+      border: none;
+      border-radius: 2rem;
+      padding: 0.5rem 0.9rem;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: 0.15s;
+      color: #1a3a46;
+    }
+
+    .small-btn.save {
+      background: #1e7e8c;
+      color: white;
+    }
+
+    .small-btn.cancel {
+      background: #e0e8ee;
+      color: #2b4b5a;
+    }
+
+    .small-btn:hover { filter: brightness(0.95); }
+    .small-btn:focus-visible { outline: 3px solid #92c9d3; outline-offset: 2px; }
+
+    /* ---------- COUNTER ---------- */
+    .counter-section {
+      display: flex;
+      align-items: center;
+      border-top: 1.5px solid #e0eaf0;
+      padding-top: 1.2rem;
+      font-size: 0.95rem;
+      color: #2b5f6e;
+    }
+
+    .tasks-left {
+      font-weight: 500;
+      background: #e6f0f5;
+      padding: 0.4rem 1rem;
+      border-radius: 2rem;
+    }
+
+    /* ---------- EMPTY STATE ---------- */
+    .empty-message {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: #7f9aa8;
+      background: #f8fbfd;
+      border-radius: 2rem;
+      font-style: italic;
+      border: 1.5px dashed #cbd8e2;
+    }
+
+    /* ---------- UTILITY ---------- */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <h1>TaskFlow</h1>
+
+    <!-- Loading / Error states -->
+    <div id="loadingBanner" class="status-banner">Loading tasks from Firestore…</div>
+    <div id="errorBanner" class="status-banner error hidden">Error: <span id="errorMessage"></span></div>
+
+    <!-- Add task -->
+    <div class="add-task-section">
+      <label for="taskInput" class="input-label">New task</label>
+      <div class="input-row">
+        <input type="text" id="taskInput" placeholder="New task" autocomplete="off" aria-label="New task description">
+        <button id="addTaskBtn" class="btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add
+        </button>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters" role="group" aria-label="Filter tasks">
+      <button class="filter-btn active" data-filter="all" aria-pressed="true">All</button>
+      <button class="filter-btn" data-filter="active" aria-pressed="false">Active</button>
+      <button class="filter-btn" data-filter="completed" aria-pressed="false">Completed</button>
+    </div>
+
+    <!-- Task list -->
+    <ul id="taskList" class="task-list" aria-live="polite" aria-label="Task list"></ul>
+
+    <!-- Counter -->
+    <div class="counter-section">
+      <span id="tasksLeft" class="tasks-left">0 tasks left</span>
+    </div>
+  </div>
+
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <script>
+    (function() {
+      // ---------- FIREBASE CONFIG ----------
+      const firebaseConfig = {
+        apiKey: "AIzaSyAXeSojuLRarGCB_NL8SwR79oiuyuCNwIE",
+        authDomain: "taskflow-e2510.firebaseapp.com",
+        projectId: "taskflow-e2510",
+        storageBucket: "taskflow-e2510.firebasestorage.app",
+        messagingSenderId: "656357483704",
+        appId: "1:656357483704:web:4bd2bc645eb8e42fbe004d",
+        measurementId: "G-5XL00G50VH"
+      };
+
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.firestore();
+
+      // ---------- DOM ELEMENTS ----------
+      const taskInput = document.getElementById('taskInput');
+      const addTaskBtn = document.getElementById('addTaskBtn');
+      const taskListEl = document.getElementById('taskList');
+      const tasksLeftEl = document.getElementById('tasksLeft');
+      const loadingBanner = document.getElementById('loadingBanner');
+      const errorBanner = document.getElementById('errorBanner');
+      const errorMessage = document.getElementById('errorMessage');
+
+      const filterBtns = document.querySelectorAll('.filter-btn');
+
+      // ---------- STATE ----------
+      let tasks = [];
+      let currentFilter = 'all';
+      let unsubscribe = null;
+
+      // ---------- HELPERS ----------
+      function showLoading(show) {
+        loadingBanner.classList.toggle('hidden', !show);
+      }
+
+      function showError(message) {
+        if (message) {
+          errorMessage.textContent = message;
+          errorBanner.classList.remove('hidden');
+        } else {
+          errorBanner.classList.add('hidden');
+          errorMessage.textContent = '';
+        }
+      }
+
+      function getFilteredTasks() {
+        if (currentFilter === 'active') return tasks.filter(t => !t.completed);
+        if (currentFilter === 'completed') return tasks.filter(t => t.completed);
+        return tasks;
+      }
+
+      function updateCounter() {
+        const activeCount = tasks.filter(t => !t.completed).length;
+        tasksLeftEl.textContent = `${activeCount} task${activeCount === 1 ? '' : 's'} left`;
+      }
+
+      function setActiveFilterButton(filter) {
+        filterBtns.forEach(btn => {
+          const isActive = btn.dataset.filter === filter;
+          btn.classList.toggle('active', isActive);
+          btn.setAttribute('aria-pressed', isActive);
+        });
+      }
+
+      // ---------- RENDER ----------
+      function renderTasks() {
+        const filtered = getFilteredTasks();
+        taskListEl.innerHTML = '';
+
+        if (filtered.length === 0) {
+          const emptyLi = document.createElement('li');
+          emptyLi.className = 'empty-message';
+          emptyLi.textContent = tasks.length === 0
+            ? 'No tasks yet. Add one above!'
+            : `No ${currentFilter} tasks`;
+          taskListEl.appendChild(emptyLi);
+          updateCounter();
+          return;
+        }
+
+        filtered.forEach(task => {
+          const li = document.createElement('li');
+          li.className = 'task-item';
+          li.dataset.taskId = task.id;
+
+          // Checkbox
+          const checkBtn = document.createElement('button');
+          checkBtn.className = `task-check ${task.completed ? 'completed' : ''}`;
+          checkBtn.setAttribute('aria-label', task.completed ? 'Mark as active' : 'Mark as completed');
+          checkBtn.setAttribute('role', 'checkbox');
+          checkBtn.setAttribute('aria-checked', task.completed);
+          checkBtn.textContent = task.completed ? '\u2713' : '';
+          checkBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleTaskCompletion(task.id, !task.completed);
+          });
+
+          // Task text
+          const textSpan = document.createElement('span');
+          textSpan.className = `task-text ${task.completed ? 'completed' : ''}`;
+          textSpan.textContent = task.text;
+
+          // Actions
+          const actionsDiv = document.createElement('div');
+          actionsDiv.className = 'task-actions';
+
+          // Edit button (pencil icon)
+          const editBtn = document.createElement('button');
+          editBtn.className = 'action-btn';
+          editBtn.setAttribute('aria-label', `Edit task: ${task.text}`);
+          editBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>';
+          editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            enterEditMode(li, task);
+          });
+
+          // Delete button (trash icon)
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'action-btn delete';
+          deleteBtn.setAttribute('aria-label', `Delete task: ${task.text}`);
+          deleteBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+          deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteTask(task.id);
+          });
+
+          actionsDiv.appendChild(editBtn);
+          actionsDiv.appendChild(deleteBtn);
+
+          li.appendChild(checkBtn);
+          li.appendChild(textSpan);
+          li.appendChild(actionsDiv);
+          taskListEl.appendChild(li);
+        });
+
+        updateCounter();
+      }
+
+      // ---------- EDIT MODE ----------
+      function enterEditMode(li, task) {
+        if (li.querySelector('.edit-input')) return;
+
+        const textSpan = li.querySelector('.task-text');
+        const actionsDiv = li.querySelector('.task-actions');
+        const checkBtn = li.querySelector('.task-check');
+
+        textSpan.classList.add('hidden');
+        actionsDiv.classList.add('hidden');
+        checkBtn.classList.add('hidden');
+
+        const editInput = document.createElement('input');
+        editInput.type = 'text';
+        editInput.className = 'edit-input';
+        editInput.value = task.text;
+        editInput.setAttribute('aria-label', 'Edit task text');
+
+        const editActions = document.createElement('div');
+        editActions.className = 'edit-actions';
+
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'small-btn save';
+        saveBtn.textContent = 'Save';
+        saveBtn.setAttribute('aria-label', 'Save changes');
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'small-btn cancel';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.setAttribute('aria-label', 'Cancel editing');
+
+        editActions.appendChild(saveBtn);
+        editActions.appendChild(cancelBtn);
+
+        li.appendChild(editInput);
+        li.appendChild(editActions);
+
+        editInput.focus();
+        editInput.select();
+
+        const saveEdit = () => {
+          const newText = editInput.value.trim();
+          if (newText && newText !== task.text) {
+            updateTaskText(task.id, newText);
+          } else {
+            cancelEdit();
+          }
+        };
+
+        const cancelEdit = () => {
+          editInput.remove();
+          editActions.remove();
+          textSpan.classList.remove('hidden');
+          actionsDiv.classList.remove('hidden');
+          checkBtn.classList.remove('hidden');
+        };
+
+        saveBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          saveEdit();
+        });
+
+        cancelBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          cancelEdit();
+        });
+
+        editInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            saveEdit();
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelEdit();
+          }
+        });
+      }
+
+      // ---------- FIRESTORE CRUD ----------
+      function subscribeToTasks() {
+        if (unsubscribe) unsubscribe();
+        showLoading(true);
+        showError(null);
+
+        unsubscribe = db.collection('tasks')
+          .orderBy('createdAt', 'desc')
+          .onSnapshot(
+            (snapshot) => {
+              tasks = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                  id: doc.id,
+                  text: data.text || '',
+                  completed: data.completed || false,
+                  createdAt: data.createdAt
+                };
+              });
+              renderTasks();
+              showLoading(false);
+            },
+            (error) => {
+              console.error('Firestore error:', error);
+              showLoading(false);
+              showError(error.message || 'Failed to load tasks. Check Firestore rules.');
+            }
+          );
+      }
+
+      function addTask(text) {
+        if (!text.trim()) return;
+        showError(null);
+        db.collection('tasks').add({
+          text: text.trim(),
+          completed: false,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(err => {
+          console.error('Add error:', err);
+          showError(err.message);
+        });
+      }
+
+      function toggleTaskCompletion(taskId, newCompleted) {
+        db.collection('tasks').doc(taskId).update({
+          completed: newCompleted
+        }).catch(err => {
+          console.error('Toggle error:', err);
+          showError(err.message);
+        });
+      }
+
+      function updateTaskText(taskId, newText) {
+        db.collection('tasks').doc(taskId).update({
+          text: newText
+        }).catch(err => {
+          console.error('Update error:', err);
+          showError(err.message);
+        });
+      }
+
+      function deleteTask(taskId) {
+        db.collection('tasks').doc(taskId).delete().catch(err => {
+          console.error('Delete error:', err);
+          showError(err.message);
+        });
+      }
+
+      // ---------- EVENTS ----------
+      addTaskBtn.addEventListener('click', () => {
+        addTask(taskInput.value);
+        taskInput.value = '';
+        taskInput.focus();
+      });
+
+      taskInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          addTask(taskInput.value);
+          taskInput.value = '';
+          taskInput.focus();
+        }
+      });
+
+      filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const filter = btn.dataset.filter;
+          if (filter === currentFilter) return;
+          currentFilter = filter;
+          setActiveFilterButton(filter);
+          renderTasks();
+        });
+      });
+
+      // ---------- INIT ----------
+      function init() {
+        setActiveFilterButton('all');
+        subscribeToTasks();
+      }
+
+      init();
+
+      window.addEventListener('beforeunload', () => {
+        if (unsubscribe) unsubscribe();
+      });
+    })();
+  </script>
+</body>
+</html>
