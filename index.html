@@ -236,6 +236,7 @@
 
     /* task text */
     .task-text {
+      display: block;
       flex: 1;
       font-size: 1rem;
       color: #1a3a46;
@@ -248,6 +249,13 @@
     .task-text.completed {
       text-decoration: line-through;
       color: #7b939f;
+    }
+
+    .task-meta {
+      display: block;
+      font-size: 0.75rem;
+      color: #8ba3b0;
+      margin-top: 0.15rem;
     }
 
     /* action buttons – icon style */
@@ -480,6 +488,20 @@
         });
       }
 
+      function formatTimestamp(createdAt) {
+        if (!createdAt || !createdAt.toDate) return 'Just now';
+        const date = createdAt.toDate();
+        const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+        if (seconds < 60) return 'Just now';
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h ago`;
+        const days = Math.floor(hours / 24);
+        if (days < 30) return `${days}d ago`;
+        return date.toLocaleDateString();
+      }
+
       // ---------- RENDER ----------
       function renderTasks() {
         const filtered = getFilteredTasks();
@@ -488,9 +510,15 @@
         if (filtered.length === 0) {
           const emptyLi = document.createElement('li');
           emptyLi.className = 'empty-message';
-          emptyLi.textContent = tasks.length === 0
-            ? 'No tasks yet. Add one above!'
-            : `No ${currentFilter} tasks`;
+          if (tasks.length === 0) {
+            emptyLi.textContent = 'No tasks yet. Add one above!';
+          } else if (currentFilter === 'active') {
+            emptyLi.textContent = 'Nothing active — nice work!';
+          } else if (currentFilter === 'completed') {
+            emptyLi.textContent = 'No completed tasks yet.';
+          } else {
+            emptyLi.textContent = 'No tasks to show.';
+          }
           taskListEl.appendChild(emptyLi);
           updateCounter();
           return;
@@ -513,10 +541,22 @@
             toggleTaskCompletion(task.id, !task.completed);
           });
 
-          // Task text
+          // Task text + timestamp
+          const textWrap = document.createElement('div');
+          textWrap.className = 'task-text-wrap';
+          textWrap.style.flex = '1';
+          textWrap.style.minWidth = '0';
+
           const textSpan = document.createElement('span');
           textSpan.className = `task-text ${task.completed ? 'completed' : ''}`;
           textSpan.textContent = task.text;
+
+          const metaSpan = document.createElement('span');
+          metaSpan.className = 'task-meta';
+          metaSpan.textContent = formatTimestamp(task.createdAt);
+
+          textWrap.appendChild(textSpan);
+          textWrap.appendChild(metaSpan);
 
           // Actions
           const actionsDiv = document.createElement('div');
@@ -546,7 +586,7 @@
           actionsDiv.appendChild(deleteBtn);
 
           li.appendChild(checkBtn);
-          li.appendChild(textSpan);
+          li.appendChild(textWrap);
           li.appendChild(actionsDiv);
           taskListEl.appendChild(li);
         });
@@ -558,11 +598,11 @@
       function enterEditMode(li, task) {
         if (li.querySelector('.edit-input')) return;
 
-        const textSpan = li.querySelector('.task-text');
+        const textWrap = li.querySelector('.task-text-wrap');
         const actionsDiv = li.querySelector('.task-actions');
         const checkBtn = li.querySelector('.task-check');
 
-        textSpan.classList.add('hidden');
+        textWrap.classList.add('hidden');
         actionsDiv.classList.add('hidden');
         checkBtn.classList.add('hidden');
 
@@ -606,7 +646,7 @@
         const cancelEdit = () => {
           editInput.remove();
           editActions.remove();
-          textSpan.classList.remove('hidden');
+          textWrap.classList.remove('hidden');
           actionsDiv.classList.remove('hidden');
           checkBtn.classList.remove('hidden');
         };
