@@ -2,7 +2,7 @@
 
 A minimalist to-do list web app built with plain HTML, CSS, and JavaScript, using Cloud Firestore for persistence.
 
-**Live demo:** _(add your deployed URL after deployment)_
+**Live demo:** https://gisele-ishimwe.github.io/taskflow/
 
 ## Features
 
