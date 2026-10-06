@@ -10,6 +10,10 @@ A minimalist to-do list web app built with plain HTML, CSS, and JavaScript, usin
 - Real-time sync via Cloud Firestore
 - Filter tasks: All / Active / Completed
 - Live "tasks left" counter
+- Relative timestamps under each task (e.g. "5m ago")
+- Contextual empty-state messages per filter
+- Add button is disabled while the input is empty
+- Confirmation dialog before deleting a task
 - Loading and error states
 - Responsive design (works at 360px wide)
 - Keyboard accessible (Tab, Enter, Escape) with ARIA labels
