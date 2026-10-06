@@ -685,7 +685,9 @@
         });
       }
 
+            // Delete task
       function deleteTask(taskId) {
+        if (!confirm('Delete this task?')) return;
         db.collection('tasks').doc(taskId).delete().catch(err => {
           console.error('Delete error:', err);
           showError(err.message);
